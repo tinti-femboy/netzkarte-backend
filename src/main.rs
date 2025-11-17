@@ -10,8 +10,8 @@ struct SendingUnitItem {
     id: u32,
     tower_fid: u32,
     cell_type: String,
-    mount_height: f64,
-    mount_direction: f64,
+    mount_height: Option<f64>,       // <-- changed
+    mount_direction: Option<f64>,    // <-- changed
     safety_distance: f64,
     vertical_safety_distance: f64,
 }
@@ -70,11 +70,13 @@ async fn get_tower_details(
             "SELECT * FROM towers WHERE fid = ?1",
             [tower_fid],
             |row| {
+                // Try to get the creation_date as Option<String>
+                let creation_date: Option<String> = row.get(3)?;
                 Ok(TowerItem {
                     fid: row.get(0)?,
                     latitude: row.get(1)?,
                     longitude: row.get(2)?,
-                    creation_date: row.get(3)?,
+                    creation_date: creation_date.unwrap_or_else(|| "unbekannt".to_string()),
                     provider_telekom: row.get(4)?,
                     provider_vodafone: row.get(5)?,
                     provider_telefonica: row.get(6)?,
@@ -82,6 +84,7 @@ async fn get_tower_details(
                 })
             }
         )?;
+
 
         let mut stmt = conn.prepare("SELECT id, tower_fid, cell_type, mount_height, mount_direction, safety_distance, vertical_safety_distance FROM sending_units WHERE tower_fid = ?1")?;
 
