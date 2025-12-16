@@ -14,6 +14,23 @@ struct SendingUnitItem {
     mount_direction: Option<f64>,    // <-- changed
     safety_distance: f64,
     vertical_safety_distance: f64,
+    group_id: u32,
+
+    estimated_provider: Option<String>,
+    certainty: Option <f64>,
+    telekom_probability: Option <f64>,
+    vodafone_probability: Option <f64>,
+    telefonica_probability: Option <f64>,
+    und1_probability: Option <f64>,
+
+    telekom_possible: bool,
+    vodafone_possible: bool,
+    telefonica_possible: bool,
+    und1_possible: bool,
+
+    latitude: f64,
+    longitude: f64,
+
 }
 
 #[derive(Serialize)]
@@ -86,7 +103,45 @@ async fn get_tower_details(
         )?;
 
 
-        let mut stmt = conn.prepare("SELECT id, tower_fid, cell_type, mount_height, mount_direction, safety_distance, vertical_safety_distance FROM sending_units WHERE tower_fid = ?1")?;
+        let mut stmt = conn.prepare("
+        SELECT id, 
+        sending_units.tower_fid, 
+        cell_type, 
+        mount_height, 
+        mount_direction, 
+        safety_distance, 
+        vertical_safety_distance, 
+        sending_units.group_id, 
+
+        provider_estimates.estimated_provider, 
+        provider_estimates.certainty,
+        telekom_prob,
+        vodafone_prob,
+        telefonica_prob,
+        und1_prob,
+
+        towers.provider_telekom AS telekom_possible,
+        towers.provider_vodafone AS vodafone_possible,
+        towers.provider_telefonica AS telefonica_possible,
+        towers.provider_1und1 AS und1_possible,
+
+        towers.latitude,
+        towers.longitude
+
+        FROM sending_units 
+
+        INNER JOIN sending_unit_groups
+        ON sending_unit_groups.group_id = sending_units.group_id
+
+        LEFT JOIN provider_estimates
+        ON provider_estimates.group_id = sending_units.group_id
+
+        INNER JOIN towers
+        ON towers.fid = sending_units.tower_fid
+
+        WHERE sending_units.tower_fid = ?1
+        ORDER BY sending_units.tower_fid ASC
+        ")?;
 
         // 2. Query the database and map the rows to our Item struct
         let unit_iter = stmt.query_map([tower_fid], |row| {
@@ -98,6 +153,22 @@ async fn get_tower_details(
                 mount_direction: row.get(4)?,
                 safety_distance: row.get(5)?,
                 vertical_safety_distance: row.get(6)?,
+                group_id: row.get(7)?,
+
+                estimated_provider: row.get(8)?,
+                certainty: row.get(9)?,
+                telekom_probability: row.get(10)?,
+                vodafone_probability: row.get(11)?,
+                telefonica_probability: row.get(12)?,
+                und1_probability: row.get(13)?,
+
+                telekom_possible: row.get(14)?,
+                vodafone_possible: row.get(15)?,
+                telefonica_possible: row.get(16)?,
+                und1_possible: row.get(17)?,
+
+                latitude: row.get(18)?,
+                longitude: row.get(19)?,
             })
         })?;
 
